@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lbatch"
+version = "1.0.0"
+description = "Local sbatch-style queue front end for Slurm"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "learnslowly" }]
+dependencies = []
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Clustering",
+]
+
+[project.scripts]
+lbatch = "lbatch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
