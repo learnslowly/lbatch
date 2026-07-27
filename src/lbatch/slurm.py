@@ -98,7 +98,7 @@ def parse_sbatch_job_id(output: str) -> str:
 
     Robust strategy:
       1. Skip any line that starts with "sbatch:" (those are lua output).
-      2. Among the remaining lines, walk from the BOTTOM up — sbatch writes
+      2. Among the remaining lines, walk from the BOTTOM up - sbatch writes
          the job id last, so the bottom-most pure-number-ish line is the
          job id. With --parsable that's "<jobid>" or "<jobid>;<cluster>".
       3. Fall back to the first integer found anywhere if nothing else

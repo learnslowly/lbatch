@@ -116,7 +116,7 @@ def dispatch_once(db: Database, config: Config, slurm: SlurmClient | None = None
     slurm controller.
 
     Initial-fill behaviour (`fill_to_cap=True`): ignore `dispatch_batch_size`
-    and dispatch up to the *full* available capacity in one pass — i.e., on
+    and dispatch up to the *full* available capacity in one pass - i.e., on
     daemon startup, drive `Remote visible` straight up to `max_remote_visible`
     so the cluster slots aren't sitting idle while we wait for the next
     sleep cycle. Submissions are still **sequential** so the per-second
@@ -151,7 +151,7 @@ def run_daemon(db: Database, config: Config, slurm: SlurmClient | None = None, o
     recover_submitting(db)
     # Initial fill: drive Remote visible up to max_remote_visible immediately
     # so the cluster slots aren't idle while the steady-state loop ramps. The
-    # sbatch RPCs themselves remain sequential (one at a time) — we just
+    # sbatch RPCs themselves remain sequential (one at a time) - we just
     # don't cap the count to `dispatch_batch_size` on the first pass.
     dispatch_once(db, config, slurm, max_remote_visible, capacity_mode, fill_to_cap=True)
     if once:

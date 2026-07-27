@@ -18,7 +18,7 @@ def _try_unlink(path: Path) -> None:
 def ingest_events(db: Database) -> int:
     count = 0
     for path in sorted(db.paths.events_dir.glob("*.release.json")):
-        # Already ingested in a prior loop — drop the file so future loops
+        # Already ingested in a prior loop - drop the file so future loops
         # don't re-stat it. Without this, every dispatch_once does O(N)
         # DB lookups against ingested_events for every event ever processed.
         if db.conn.execute(
@@ -31,7 +31,7 @@ def ingest_events(db: Database) -> int:
         try:
             event = json.loads(raw.decode())
         except json.JSONDecodeError:
-            # Malformed event — drop it so we don't repeatedly re-parse it.
+            # Malformed event - drop it so we don't repeatedly re-parse it.
             _try_unlink(path)
             continue
         if event.get("event_type") != "release" or not event.get("unit_id"):

@@ -369,7 +369,7 @@ lbatch --array=1-300 job.batch
 
 creates one group with 300 units.
 
-A group records the user’s original intent:
+A group records the user's original intent:
 
 - original argv;
 - working directory;
@@ -725,7 +725,7 @@ Rules:
 5. Stop permanently at the first non-comment, non-whitespace executable line.
 6. Do not process any later `#SBATCH` lines.
 
-This mimics Slurm’s documented behavior.
+This mimics Slurm's documented behavior.
 
 ### 10.2 Merge precedence
 
@@ -1138,7 +1138,7 @@ The wrapper must:
 3. run the original user script;
 4. capture exit code;
 5. write an atomic release event JSON;
-6. exit with the user script’s exit code.
+6. exit with the user script's exit code.
 
 ### 15.2 Wrapper template
 
@@ -1778,7 +1778,7 @@ The implementation relies on the following Slurm behaviors:
 - Array tasks set `SLURM_ARRAY_TASK_ID`.
 - `%A` and `%a` in filenames are expanded to array job ID and array task ID, respectively.
 - Array tasks still count as regular jobs for job-related limits.
-- `squeue` views jobs in Slurm’s queue and can show array elements separately with array-oriented options.
+- `squeue` views jobs in Slurm's queue and can show array elements separately with array-oriented options.
 - `sacct` displays accounting information, including job state and exit-code fields, when accounting is configured.
 
 Official documentation:
