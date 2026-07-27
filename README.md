@@ -16,6 +16,13 @@ Examples:
 
 `lbatch` is not a scientific workflow scheduler. It does not decide whether your analysis succeeded. If the remote job exits, `lbatch` records the exit code and releases the local slot.
 
+For explicitly pack-safe workloads, `lbatch run-pack` also provides a
+node-local resource-pool executor. Logical tasks declare uniform core, memory
+and GPU requirements; the executor starts a task only when all three resources
+fit, and returns those tokens when it exits. This complements the outer local
+queue: the daemon controls Slurm-visible jobs, while `run-pack` controls
+concurrency inside one allocation.
+
 ## Status
 
 This repository contains a first working MVP of the v1.0 spec:
@@ -266,6 +273,58 @@ Detach with `Ctrl-b d` and reattach with:
 ```bash
 tmux attach -t lbatch
 ```
+
+## Packing Tasks Inside One Allocation
+
+Use `run-pack` only for independent, idempotent tasks whose output paths are
+unique by task ID. It executes command arguments directly, without a shell.
+`{task_id}` and `{task_index}` placeholders are replaced in every command
+argument; the same values are also exported as `LBATCH_PACK_TASK_ID` and
+`LBATCH_PACK_TASK_INDEX`.
+
+CPU-only example on a 64-core, 250 GiB allocation:
+
+```bash
+lbatch run-pack \
+  --array=0-119 \
+  --pool-cores=64 \
+  --pool-memory=250G \
+  --cores-per-worker=1 \
+  --memory-per-worker=3G \
+  --log-dir="results/packs/${SLURM_JOB_ID}" \
+  -- python -m mypackage.run --task-id '{task_id}'
+```
+
+The example may contain 120 logical tasks, but at most 64 fit by cores and at
+most 83 fit by RAM, so the effective concurrency is 64. When one task exits,
+the next starts immediately.
+
+GPU example:
+
+```bash
+lbatch run-pack \
+  --array=0-15%4 \
+  --pool-cores=64 \
+  --pool-memory=250G \
+  --pool-gpus=0,1,2,3 \
+  --cores-per-worker=8 \
+  --memory-per-worker=40G \
+  --gpus-per-worker=1 \
+  --log-dir="results/gpu-packs/${SLURM_JOB_ID}" \
+  -- python train.py --fold '{task_id}'
+```
+
+Here the core pool permits eight workers, RAM permits six, the GPU pool permits
+four, and `%4` also caps the run, so four tasks execute concurrently. Each
+child receives a disjoint `CUDA_VISIBLE_DEVICES` value. GPU identifiers are
+returned to the pool after the child exits.
+
+If pool sizes are omitted, `run-pack` detects cores and memory from Slurm
+environment variables and GPU identifiers from `CUDA_VISIBLE_DEVICES`.
+Explicit values are recommended when a partition supplies defaults without
+exporting them. Per-task stdout, stderr and atomic status JSON files are written
+under `--log-dir`; `manifest.json` summarizes the resource contract and every
+exit code, and `.done` exists only when all tasks succeed.
 
 ## Capacity Modes
 

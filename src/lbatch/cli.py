@@ -3,13 +3,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
+from .arrays import parse_array_spec
 from .config import Config, Paths
 from .db import Database, internal_group_id, public_group_id, utcnow
 from .errors import LBatchError, ParseError
 from .events import ingest_events
 from .locks import FileLock
 from .parser import parse_submission
+from .pool import WorkerResources, detect_pool, parse_memory, run_pack
 from .recovery import recover_submitting
 from .sbatch_directives import extract_directive_argv
 from .scheduler import dispatch_once, run_daemon
@@ -18,7 +21,7 @@ from .status import format_status, groups_text, status_data, units_text
 from .submission import create_submission, dry_run_plan
 from .version import __version__
 
-RESERVED = {"daemon", "status", "config", "reconcile", "capacity-check", "release", "cancel", "doctor", "prune", "help", "version", "submit"}
+RESERVED = {"daemon", "status", "config", "reconcile", "capacity-check", "release", "cancel", "doctor", "prune", "run-pack", "help", "version", "submit"}
 
 
 def _db_config() -> tuple[Paths, Config, Database]:
@@ -294,11 +297,66 @@ def cmd_prune(argv: list[str]) -> int:
         db.close()
 
 
+def cmd_run_pack(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="lbatch run-pack",
+        description=(
+            "run array tasks through bounded core, memory and GPU pools; "
+            "use {task_id} or LBATCH_PACK_TASK_ID in the child command"
+        ),
+    )
+    parser.add_argument("--array", required=True)
+    parser.add_argument("--cores-per-worker", type=int, default=1)
+    parser.add_argument("--memory-per-worker", default="0")
+    parser.add_argument("--gpus-per-worker", type=int, default=0)
+    parser.add_argument("--pool-cores", type=int)
+    parser.add_argument("--pool-memory")
+    parser.add_argument(
+        "--pool-gpus",
+        help="GPU count or comma-separated device identifiers",
+    )
+    parser.add_argument("--max-workers", type=int)
+    parser.add_argument("--log-dir", required=True, type=Path)
+    parser.add_argument("command", nargs=argparse.REMAINDER)
+    ns = parser.parse_args(argv)
+    command = list(ns.command)
+    if command and command[0] == "--":
+        command = command[1:]
+    expansion = parse_array_spec(ns.array)
+    requested_maximum = ns.max_workers
+    if expansion.concurrency_limit is not None:
+        requested_maximum = (
+            expansion.concurrency_limit
+            if requested_maximum is None
+            else min(requested_maximum, expansion.concurrency_limit)
+        )
+    pool = detect_pool(
+        pool_cores=ns.pool_cores,
+        pool_memory=ns.pool_memory,
+        pool_gpus=ns.pool_gpus,
+    )
+    demand = WorkerResources(
+        cores=ns.cores_per_worker,
+        memory_bytes=parse_memory(ns.memory_per_worker),
+        gpus=ns.gpus_per_worker,
+    )
+    manifest, succeeded = run_pack(
+        task_ids=expansion.task_ids,
+        command=command,
+        log_dir=ns.log_dir,
+        pool=pool,
+        demand=demand,
+        maximum_workers=requested_maximum,
+    )
+    print(manifest)
+    return 0 if succeeded else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
         if not argv or argv[0] == "help":
-            print("usage: lbatch [daemon|status|config|reconcile|capacity-check|release|cancel|doctor|prune|version|submit] ...")
+            print("usage: lbatch [daemon|status|config|reconcile|capacity-check|release|cancel|doctor|prune|run-pack|version|submit] ...")
             print("       lbatch [common sbatch options] script [script args...]")
             return 0
         cmd = argv[0]
@@ -323,6 +381,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_doctor(argv[1:])
         if cmd == "prune":
             return cmd_prune(argv[1:])
+        if cmd == "run-pack":
+            return cmd_run_pack(argv[1:])
         return _submission(argv)
     except (LBatchError, ParseError, OSError) as exc:
         print(f"lbatch: error: {exc}", file=sys.stderr)

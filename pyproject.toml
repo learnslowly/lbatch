@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lbatch"
-version = "1.0.0"
+version = "1.1.0"
 description = "Local sbatch-style queue front end for Slurm"
 readme = "README.md"
 license = { file = "LICENSE" }
